@@ -26,15 +26,16 @@ Open `bitnetv2.ipynb` in Jupyter or VS Code to:
 - Run inference on sample prompts
 - Measure and display performance metrics
 
-### Benchmark Script
-Run the benchmark script from the command line:
+### Standalone Script
+
+You can run `bitnetv2.py` as a standalone script from the command line:
+
 ```zsh
-python bitnetv2.py -m microsoft/bitnet-b1.58-2B-4T -n 128 -p 512 -t 4
+python bitnetv2.py 
+# OR
+python bitnet.py --user "Tell me about the latest advancements in AI."
+
 ```
-- `-m`: Model identifier or path
-- `-n`: Number of tokens to generate
-- `-p`: Prompt length
-- `-t`: Number of CPU threads
 
 ## Notes
 - The scripts are optimized for CPU inference. GPU is not required but will improve performance if available.

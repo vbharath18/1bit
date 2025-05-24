@@ -23,7 +23,7 @@ if tokenizer.pad_token is None:
 
 # Initialize BitNet configuration with optimizations
 config = BitNetConfig.from_pretrained(model_id)
-config.torch_dtype = torch.bfloat16
+# config.torch_dtype = torch.bfloat16
 config.low_cpu_mem_usage = True
 config.pad_token_id = tokenizer.pad_token_id
 # Performance optimizations
@@ -40,9 +40,14 @@ config.use_flash_attention = True  # Enable flash attention if supported
 model = AutoModelForCausalLM.from_pretrained(
     model_id,
     config=config,
-    device_map='auto',  # Automatically handle device placement
-    torch_compile=True  # Enable torch.compile for faster execution
+    torch_dtype=torch.bfloat16  # Use bfloat16 for efficiency, or change to torch.float32 if unsupported
 )
+
+# Optionally compile the model for faster execution (PyTorch 2.0+)
+try:
+    model = torch.compile(model)
+except Exception as e:
+    print(f"torch.compile not available or failed: {e}")
 
 # Move model to CPU explicitly and optimize
 model = model.cpu()
@@ -85,7 +90,6 @@ with torch.inference_mode():  # More efficient than no_grad for inference
         top_k=40,        # Add top_k sampling for better speed/quality balance
         use_cache=True,  # Enable KV-cache
         num_beams=1,     # Disable beam search for faster generation
-        early_stopping=True,  # Enable early stopping
         pad_token_id=tokenizer.pad_token_id,
         bos_token_id=tokenizer.bos_token_id,
         eos_token_id=tokenizer.eos_token_id,
