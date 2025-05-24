@@ -1,6 +1,7 @@
 import os
 import warnings
 import torch
+import time
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import argparse
 
@@ -37,9 +38,16 @@ def main():
     try:
         prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         chat_input = tokenizer(prompt, return_tensors="pt").to(model.device)
-        chat_outputs = model.generate(**chat_input, max_new_tokens=30)  # Reduce tokens for lower memory
+        
+        # Measure inference time
+        start_time = time.time()
+        chat_outputs = model.generate(**chat_input, max_new_tokens=500)  # Reduce tokens for lower memory
+        end_time = time.time()
+        inference_time = end_time - start_time
+        
         response = tokenizer.decode(chat_outputs[0][chat_input['input_ids'].shape[-1]:], skip_special_tokens=True)
         print("\nAssistant Response:\n", response.strip())
+        print(f"\nInference time: {inference_time:.2f} seconds")
     except Exception as e:
         print(f"Error during generation: {e}")
 

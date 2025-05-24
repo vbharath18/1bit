@@ -3,7 +3,7 @@ import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitNetConfig
 import torch.backends.cpu
 
 # Enable memory alignment
@@ -20,12 +20,28 @@ tokenizer = AutoTokenizer.from_pretrained(model_id)
 # Set up padding token (using EOS token as pad token is a common practice)
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
-    
+
+# Initialize BitNet configuration with optimizations
+config = BitNetConfig.from_pretrained(model_id)
+config.torch_dtype = torch.bfloat16
+config.low_cpu_mem_usage = True
+config.pad_token_id = tokenizer.pad_token_id
+# Performance optimizations
+config.use_cache = True  # Enable KV-cache for faster inference
+config.pretraining_tp = 1  # Tensor parallelism degree
+config.max_position_embeddings = 2048  # Match with your max_length
+config.hidden_dropout_prob = 0  # Disable dropout for inference
+config.attention_dropout_prob = 0  # Disable attention dropout for inference
+config.use_memory_efficient_attention = True  # Use memory efficient attention
+config.scale_attention_softmax_in_fp32 = False  # Keep in lower precision
+config.use_flash_attention = True  # Enable flash attention if supported
+
+# Load model with optimized configuration
 model = AutoModelForCausalLM.from_pretrained(
     model_id,
-    torch_dtype=torch.bfloat16,
-    low_cpu_mem_usage=True,
-    pad_token_id=tokenizer.pad_token_id
+    config=config,
+    device_map='auto',  # Automatically handle device placement
+    torch_compile=True  # Enable torch.compile for faster execution
 )
 
 # Move model to CPU explicitly and optimize
@@ -63,13 +79,19 @@ with torch.inference_mode():  # More efficient than no_grad for inference
         **chat_input,
         max_new_tokens=500,
         num_return_sequences=1,
-        do_sample=True,  # Enable sampling
-        temperature=0.6,  # Control randomness (lower = more focused)
-        top_p=0.9,       # Nucleus sampling
+        do_sample=True,
+        temperature=0.7,  # Slightly higher temperature for faster sampling
+        top_p=0.95,      # Slightly higher top_p for faster sampling
+        top_k=40,        # Add top_k sampling for better speed/quality balance
         use_cache=True,  # Enable KV-cache
+        num_beams=1,     # Disable beam search for faster generation
+        early_stopping=True,  # Enable early stopping
         pad_token_id=tokenizer.pad_token_id,
         bos_token_id=tokenizer.bos_token_id,
-        eos_token_id=tokenizer.eos_token_id
+        eos_token_id=tokenizer.eos_token_id,
+        repetition_penalty=1.1,  # Light penalty to avoid repetitions efficiently
+        length_penalty=1.0,  # Neutral length penalty for faster completion
+        no_repeat_ngram_size=3  # Prevent repetition of 3-grams
     )
     generation_time = time.time() - generation_start
     
