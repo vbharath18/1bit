@@ -1,13 +1,7 @@
 import os
 import time
 import warnings
-
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
 import argparse
-
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
-warnings.filterwarnings("ignore", message="You don't have a GPU available to load the model*")
 
 # Supported BitNet-compatible models
 SUPPORTED_MODELS = {
@@ -29,6 +23,12 @@ DEFAULT_MODEL = "bitnet-2b"
 
 def load_model(model_id):
     """Load tokenizer and model from Hugging Face."""
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    warnings.filterwarnings("ignore", message="You don't have a GPU available to load the model*")
+
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -44,6 +44,8 @@ def load_model(model_id):
 
 def generate_response(tokenizer, model, user_message, max_new_tokens=500):
     """Generate a response and return it with performance metrics."""
+    import torch
+
     messages = [
         {"role": "system", "content": "You are a helpful AI assistant."},
         {"role": "user", "content": user_message},

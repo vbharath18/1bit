@@ -1,15 +1,7 @@
 import os
 import time
-
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
-os.environ["PYTORCH_CPU_ALLOC_CONF"] = "max_split_size_mb:64"
-
 import argparse
 import json
-
-import torch
-import torch.backends.cpu
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitNetConfig
 
 # Supported BitNet-compatible models
 SUPPORTED_MODELS = {
@@ -31,12 +23,21 @@ DEFAULT_MODEL = "bitnet-2b"
 
 def setup_cpu_optimizations(num_threads=None):
     """Configure CPU-specific performance settings."""
+    import torch
+    import torch.backends.cpu
+
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    os.environ["PYTORCH_CPU_ALLOC_CONF"] = "max_split_size_mb:64"
+
     torch.backends.cpu.optimize = True
     torch.set_num_threads(num_threads or os.cpu_count())
 
 
 def load_model(model_id):
     """Load tokenizer and model with BitNet-optimized configuration."""
+    import torch
+    from transformers import AutoModelForCausalLM, AutoTokenizer, BitNetConfig
+
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -67,6 +68,8 @@ def load_model(model_id):
 
 def generate_response(tokenizer, model, user_message, max_new_tokens=500):
     """Generate a response and return it with detailed performance metrics."""
+    import torch
+
     messages = [
         {"role": "system", "content": "You are a helpful AI assistant."},
         {"role": "user", "content": user_message},
@@ -133,7 +136,6 @@ def generate_via_server(server_url, user_message, model_name, max_new_tokens=500
     Uses urllib so no extra dependencies are needed beyond the standard library.
     """
     import urllib.request
-    import urllib.error
 
     url = f"{server_url}/v1/chat/completions"
     payload = json.dumps({
