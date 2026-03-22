@@ -9,12 +9,29 @@ import argparse
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 warnings.filterwarnings("ignore", message="You don't have a GPU available to load the model*")
 
-MODEL_ID = "microsoft/bitnet-b1.58-2B-4T"
+# Supported BitNet-compatible models
+SUPPORTED_MODELS = {
+    # Microsoft official
+    "bitnet-2b": "microsoft/bitnet-b1.58-2B-4T",
+    # Falcon3 1.58-bit quantized
+    "falcon3-1b": "tiiuae/Falcon3-1B-Instruct-1.58bit",
+    "falcon3-3b": "tiiuae/Falcon3-3B-Instruct-1.58bit",
+    "falcon3-7b": "tiiuae/Falcon3-7B-Instruct-1.58bit",
+    "falcon3-10b": "tiiuae/Falcon3-10B-Instruct-1.58bit",
+    # Llama3 1.58-bit quantized
+    "llama3-8b": "HF1BitLLM/Llama3-8B-1.58-100B-tokens",
+    # Community
+    "bitnet-3b": "1bitLLM/bitnet_b1_58-3B",
+}
+
+DEFAULT_MODEL = "bitnet-2b"
 
 
 def load_model(model_id):
     """Load tokenizer and model from Hugging Face."""
     tokenizer = AutoTokenizer.from_pretrained(model_id)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
         device_map="cpu",
@@ -55,13 +72,26 @@ def generate_response(tokenizer, model, user_message, max_new_tokens=500):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Chat with BitNet model.")
+    parser = argparse.ArgumentParser(description="Chat with BitNet-compatible models.")
     parser.add_argument("--user", type=str, default="How are you?", help="User message to send to the assistant.")
     parser.add_argument("--max-tokens", type=int, default=500, help="Maximum number of new tokens to generate.")
+    parser.add_argument("--model", type=str, default=DEFAULT_MODEL,
+                        help=f"Model to use. Shorthand: {', '.join(SUPPORTED_MODELS.keys())}. "
+                             "Or pass a full HuggingFace model ID.")
+    parser.add_argument("--list-models", action="store_true", help="List all supported model shorthands and exit.")
     args = parser.parse_args()
 
+    if args.list_models:
+        print("Supported models:")
+        for shorthand, model_id in SUPPORTED_MODELS.items():
+            print(f"  {shorthand:16s} -> {model_id}")
+        return
+
+    model_id = SUPPORTED_MODELS.get(args.model, args.model)
+    print(f"Loading model: {model_id}")
+
     try:
-        tokenizer, model = load_model(MODEL_ID)
+        tokenizer, model = load_model(model_id)
     except Exception as e:
         print(f"Error loading model or tokenizer: {e}")
         return
